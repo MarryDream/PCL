@@ -830,7 +830,7 @@ NextFile:
             Return EscapeHandler(s)
         End Function
         '基础
-        Text = Text.Replace("{pcl_version}", Replacer(VersionBaseName))
+        Text = Text.Replace("{pcl_version}", Replacer(VersionName))
         Text = Text.Replace("{pcl_version_code}", Replacer(VersionCode))
         Text = Text.Replace("{pcl_version_branch}", Replacer(BuildTypeDisplay))
         Text = Text.Replace("{pcl_build_type}", Replacer(BuildType.ToString))

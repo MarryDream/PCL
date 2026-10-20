@@ -13,9 +13,20 @@ Friend Module ModSecret
     '用于匿名数据收集的腾讯云日志服务上报 URL，形如 https://{region}.cls.tencentcs.com/track?topic_id={topic_id}
     Public Const ClsBaseUrl As String = ""
 
+    Friend Function GetCredentialSetupNotice() As String
+        Dim Notice As String = ""
+        If String.IsNullOrWhiteSpace(CurseForgeAPIKey) Then
+            Notice &= vbCrLf & "- CurseForge API 调用：请自行申请 API Key，在 Windows 用户环境变量中设置 PCL_CURSEFORGE_API_KEY，保存后彻底退出并重新启动 PCL。"
+        End If
+        If String.IsNullOrWhiteSpace(OAuthClientId) Then
+            Notice &= vbCrLf & "- 正版登录：请自行向微软申请 Client ID，在 Windows 用户环境变量中设置 PCL_MS_CLIENT_ID，保存后彻底退出并重新启动 PCL。"
+        End If
+        Return Notice
+    End Function
+
 #Region "网络鉴权"
 
-    Public Const RestrictMcDownload As Boolean = True
+    Public Const RestrictMcDownload As Boolean = False
     Friend Function SecretCdnSign(UrlWithMark As String) As String
         If Not UrlWithMark.EndsWithF("{CDN}") Then Return UrlWithMark
         Return UrlWithMark.Replace("{CDN}", "").Replace(" ", "%20")

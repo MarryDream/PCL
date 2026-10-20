@@ -342,3 +342,13 @@ ASALocalRun/
 healthchecksdb
 
 MaskFiles/
+
+# Local credentials (also ignore obsolete runtime configuration).
+Secrets.json
+.env
+
+# Local private entry point, backups, and build outputs.
+/build.private.ps1
+/artifacts/
+/*.exe
+/*.zip

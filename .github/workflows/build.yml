@@ -1,69 +1,99 @@
-name: Build
+name: Public build
 on:
-  push:
-    paths:
-      - 'Plain Craft Launcher 2/**'
-      - '.github/workflows/**'
-  pull_request:
-    paths:
-      - 'Plain Craft Launcher 2/**'
-      - '.github/workflows/**'
   workflow_dispatch:
-
+  push:
+    branches: [main]
+    tags: ['*-fix-download.*']
+permissions:
+  contents: read
 jobs:
   build:
-    name: Build
     runs-on: windows-latest
-    strategy:  
-       matrix:  
-         configuration: [Debug, Release]
-
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - name: Validate source version and release tag
+        id: version
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = Get-Content -Encoding UTF8 'Plain Craft Launcher 2/Modules/Base/ModBase.vb' -Raw
+          $baseVersion = [regex]::Match($source, 'VersionBaseName As String = "([0-9.]+)"').Groups[1].Value
+          $suffix = [regex]::Match($source, 'VersionLocalSuffix As String = "(-fix-download\.[1-9][0-9]*)"').Groups[1].Value
+          $version = $baseVersion + $suffix
+          if ($version -notmatch '^[0-9]+(?:\.[0-9]+){2,3}-fix-download\.[1-9][0-9]*$') {
+            throw 'Source version must use {upstream-version}-fix-download.{revision}, with revision starting at 1.'
+          }
+          if ($env:GITHUB_EVENT_NAME -eq 'push' -and $env:GITHUB_REF_TYPE -eq 'tag') {
+            if ($env:GITHUB_REF_NAME -notmatch '^[0-9]+(?:\.[0-9]+){2,3}-fix-download\.[1-9][0-9]*$') {
+              throw 'Invalid release tag format. Do not add a v prefix.'
+            }
+            if ($env:GITHUB_REF_NAME -cne $version) {
+              throw "Release tag '$env:GITHUB_REF_NAME' does not match source version '$version'."
+            }
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '9.0.x'
+      - uses: microsoft/setup-msbuild@v3
+        with:
+          msbuild-architecture: x64
+      - name: Build public ZIP
+        shell: pwsh
+        run: ./build.ps1
+      - name: Verify public EXE version and ZIP
+        shell: pwsh
+        env:
+          BUILD_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $directory = Join-Path 'artifacts/public' $env:BUILD_VERSION
+          $exe = Get-Item -LiteralPath (Join-Path $directory 'Plain Craft Launcher 2.exe')
+          if ($exe.VersionInfo.ProductVersion -cne $env:BUILD_VERSION) {
+            throw 'Built EXE product version does not match the source version.'
+          }
+          if (-not (Test-Path -LiteralPath (Join-Path $directory "PCL-$env:BUILD_VERSION.zip") -PathType Leaf)) {
+            throw 'Expected public ZIP was not generated.'
+          }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: PCL-public
+          path: artifacts/public/${{ steps.version.outputs.version }}/PCL-${{ steps.version.outputs.version }}.zip
+          if-no-files-found: error
 
-    - name: Checkout
-      uses: actions/checkout@v6
-      with:
-        fetch-depth: 1
-        submodules: true
-
-    - name: Set Describe
-      shell: bash
-      run: |
-          describe=`git describe --tags --always`
-          echo "describe=$describe" >> $GITHUB_ENV
-
-    - name: Setup MSBuild.exe
-      uses: microsoft/setup-msbuild@v3
-      with:
-        msbuild-architecture: x64
-    
-    - name: Update Help
-      run:  |
-        Set-Location ..
-        git clone https://github.com/LTCatt/PCL2Help.git -b master --single-branch --depth 1
-        Set-Location PCL2Help
-        Remove-Item -Path *.* -Recurse -Force
-        Compress-Archive -Path .\* -DestinationPath .\Help.zip
-        Copy-Item -Path .\Help.zip -Destination "${{ GITHUB.WORKSPACE }}\Plain Craft Launcher 2\Resources\Help.zip" -Force
-        Set-Location ..
-        Remove-Item PCL2Help -Recurse -Force
-        Set-Location ${{ GITHUB.WORKSPACE }}
-
-
-    - name: Replace
-      run: |
-        (gc "Plain Craft Launcher 2\Modules\ModSecret.vb") -replace 'Public OAuthClientId As String = If(Environment.GetEnvironmentVariable("PCL_MS_CLIENT_ID"), "")', 'Public OAuthClientId As String = If(Environment.GetEnvironmentVariable("PCL_MS_CLIENT_ID"), "${{ secrets.CLIENT_ID }}")' | Out-File "Plain Craft Launcher 2\Modules\ModSecret.vb"
-        (gc "Plain Craft Launcher 2\Modules\ModSecret.vb") -replace 'Public CurseForgeAPIKey As String = If(Environment.GetEnvironmentVariable("PCL_CURSEFORGE_API_KEY"), "")', 'Public CurseForgeAPIKey As String = If(Environment.GetEnvironmentVariable("PCL_CURSEFORGE_API_KEY"), "${{ secrets.CURSEFORGE_API_KEY }}")' | Out-File "Plain Craft Launcher 2\Modules\ModSecret.vb"
-        (gc "Plain Craft Launcher 2\Modules\Base\ModBase.vb") -replace 'Public Const CommitHash As String = ""', 'Public Const CommitHash As String = "${{ github.sha }}"' | Out-File "Plain Craft Launcher 2\Modules\Base\ModBase.vb"
-        
-    - name: Restore NuGet Packages
-      run: dotnet restore PCLCS\PCLCS.csproj
-
-    - name: Build
-      run: msbuild "Plain Craft Launcher 2\Plain Craft Launcher 2.vbproj" -p:Configuration=${{ matrix.configuration }}
-
-    - name: Upload a Build Artifact
-      uses: actions/upload-artifact@v7
-      with:
-        name: ${{ matrix.configuration }} ${{ env.describe }}
-        path: Plain Craft Launcher 2\obj\${{ matrix.configuration }}\Plain Craft Launcher 2.exe
+  release:
+    needs: build
+    if: ${{ github.event_name == 'push' && github.ref_type == 'tag' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: PCL-public
+          path: release
+      - name: Create draft release for tagged public build
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          BUILD_VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [[ "$RELEASE_TAG" != "$BUILD_VERSION" ]]; then
+            echo 'Release tag does not match the verified build version.' >&2
+            exit 1
+          fi
+          asset="release/PCL-$BUILD_VERSION.zip"
+          if [[ ! -f "$asset" ]]; then
+            echo 'Verified public ZIP is missing.' >&2
+            exit 1
+          fi
+          # Existing releases fail rather than replacing published assets.
+          gh release create "$RELEASE_TAG" "$asset" \
+            --repo "$GH_REPO" --verify-tag --title "$RELEASE_TAG" --draft --notes ""

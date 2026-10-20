@@ -53,4 +53,5 @@ Imports System.Runtime.InteropServices
 
 <Assembly: AssemblyVersion("2.99.0.0")>
 <Assembly: AssemblyFileVersion("2.99.0.0")>
+<Assembly: AssemblyInformationalVersion(PCL.ModBase.VersionName)>
 <Assembly: NeutralResourcesLanguage("")>
