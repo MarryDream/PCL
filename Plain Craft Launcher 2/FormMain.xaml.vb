@@ -672,9 +672,9 @@ Public Class FormMain
             If OpenSourceNotice IsNot Nothing AndAlso Not OpenSourceNotice.IsExited Then Return
             OpenSourceNotice = New MyMsgBoxConverter With {
                 .Type = MyMsgBoxType.Text, .Title = "开源版本说明", .ForceWait = True,
-                .Text = $"该开源版本的配置与功能说明：{GetCredentialSetupNotice()}{vbCrLf}- 更新检测：在设置 → 其他 → 启动器中填写更新源地址{vbCrLf}- 联网通知：该版本暂不提供{vbCrLf}- 主题切换：这是需要赞助解锁的纪念性质的功能，别让赞助者太伤心啦……{vbCrLf}- 百宝箱：开发早期往里面塞了些开发工具，整理起来太麻烦了……",
-                .CheckBoxText = If(Automatic, "下次启动不再显示", ""),
-                .CheckBoxSettingKey = If(Automatic, "HintOpenSourceHidden", Nothing)}
+                .Text = $"此开源版本由 @MarryDream 维护，部分功能有区别于官方开源版本，版本配置与功能说明：{GetCredentialSetupNotice()}{vbCrLf}- 更新检测：在设置 → 其他 → 启动器中填写更新源地址{vbCrLf}- 联网通知：该版本暂不提供{vbCrLf}- 主题切换：这是需要赞助解锁的纪念性质的功能，别让赞助者太伤心啦……{vbCrLf}- 百宝箱：开发早期往里面塞了些开发工具，整理起来太麻烦了……",
+                .CheckBoxText = "下次启动不再显示",
+                .CheckBoxSettingKey = "HintOpenSourceHidden"}
             WaitingMyMsgBox.Enqueue(OpenSourceNotice)
         End Sub)
     End Sub
