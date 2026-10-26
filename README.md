@@ -25,8 +25,6 @@
 可以在 **设置 - 其他 - 启动器 - 更新源地址** 填写版本信息 JSON 文件的完整 url 地址，然后点击“检查更新”，若地址无效，则会弹出错误提示。  
 公共构建的默认更新源为空，可通过 `ModSecret.vb` 中的 `DefaultUpdateSource` 或启动时的环境变量 `PCL_UPDATE_SOURCE` 配置后自行构建。
 
-JSON 的可选布尔字段 `critical` 默认是 `false`。标记为 `true` 时，选择“仅在有重大漏洞更新时显示提示”的用户也会收到启动更新提示。
-
 每次打包后会同步生成 update.json，版本信息 JSON 文件的内容示例如下：
 
 ```json
