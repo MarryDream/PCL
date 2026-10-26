@@ -6,7 +6,9 @@ Public Class FormMain
 #Region "基础"
 
     '更新日志
-    Private Sub ShowUpdateLog(LastVersion As Integer)
+    Private PendingUpdateLogVersion As Integer = -1
+
+    Private Sub ShowUpdateLog(LastVersion As Integer, Optional LastLocalVersion As String = Nothing)
         Dim FeatureCount As Integer = 0, BugCount As Integer = 0
         Dim FeatureList As New List(Of KeyValuePair(Of Integer, String))
         '统计更新日志条目
@@ -255,6 +257,14 @@ Public Class FormMain
                 BugCount += 10
             End If
         End If
+        '本地版本日志：在此按完整版本添加条目，与上游整数版本日志独立维护。
+        If LastLocalVersion IsNot Nothing AndAlso
+           CompareLauncherVersions(LastLocalVersion, "2.99.0.1-fix-download.2") < 0 AndAlso
+           CompareLauncherVersions(VersionName, "2.99.0.1-fix-download.2") >= 0 Then
+            FeatureList.Add(New KeyValuePair(Of Integer, String)(4, "新增：更新源地址设置，支持自动下载最新版本"))
+            FeatureList.Add(New KeyValuePair(Of Integer, String)(3, "新增：启动时的开源版本说明弹窗支持「下次启动不再显示」"))
+            FeatureList.Add(New KeyValuePair(Of Integer, String)(3, "新增：标题栏开源版本说明按钮，可手动打开说明弹窗"))
+        End If
         '整理更新日志文本
         Dim ContentList As New List(Of String)
         Dim SortedFeatures = FeatureList.OrderByDescending(Function(f) f.Key).ToList
@@ -295,6 +305,20 @@ Public Class FormMain
         ElseIf LastVersion > VersionCode Then
             '触发降级
             DowngradeSub(LastVersion)
+        End If
+        Dim InstalledOldVersion = ShowLauncherUpdateResult()
+        '本地后缀不改变 VersionCode，单独记录完整版本；上游迁移仍使用原来的整数版本。
+        Dim HighestLocalVersion = Settings.Get(Of String)("SystemHighestLocalVersion")
+        If HighestLocalVersion = "" Then
+            HighestLocalVersion = If(InstalledOldVersion, If(LastVersion > 0, VersionBaseName & "-fix-download.1", VersionName))
+        End If
+        Dim LocalUpgrade = CompareLauncherVersions(HighestLocalVersion, VersionName) < 0
+        If CompareLauncherVersions(HighestLocalVersion, VersionName) <= 0 Then
+            Settings.Set("SystemHighestLocalVersion", VersionName)
+        End If
+        If PendingUpdateLogVersion >= 0 OrElse LocalUpgrade Then
+            ShowUpdateLog(If(PendingUpdateLogVersion >= 0, PendingUpdateLogVersion, VersionCode),
+                          If(LocalUpgrade, HighestLocalVersion, Nothing))
         End If
         '版本隔离设置迁移
         If Not Settings.HasSaved("LaunchArgumentIndieV2") Then
@@ -435,6 +459,7 @@ Public Class FormMain
                 DlClientListMojangLoader.Start(1) 'PCL 会同时根据这里的加载结果决定是否使用官方源进行下载
                 RunCountSub()
                 ServerLoader.Start()
+                StartLauncherAutoUpdate()
                 RunInNewThread(AddressOf TryClearTaskTemp, "TryClearTaskTemp", ThreadPriority.BelowNormal)
             Catch ex As Exception
                 Logger.Error(ex, "初始化加载池运行失败")
@@ -449,7 +474,7 @@ Public Class FormMain
             Telemetry("启动")
             '开源版本提示
             If VersionBranchMain = "OpenSource" Then
-                MyMsgBox($"该开源版本的配置与功能说明：{GetCredentialSetupNotice()}{vbCrLf}- 更新与联网通知：避免滥用隐患{vbCrLf}- 主题切换：这是需要赞助解锁的纪念性质的功能，别让赞助者太伤心啦……{vbCrLf}- 百宝箱：开发早期往里面塞了些开发工具，整理起来太麻烦了……", "开源版本说明")
+                ShowOpenSourceNotice(Automatic:=True)
             End If
         End Sub, "初始化", ThreadPriority.Lowest)
 
@@ -548,7 +573,7 @@ Public Class FormMain
         '输出更新日志
         If LastVersionCode <= 0 Then Return
         If HighestVersionCode >= VersionCode Then Return
-        ShowUpdateLog(HighestVersionCode)
+        PendingUpdateLogVersion = HighestVersionCode
     End Sub
     Private Sub DowngradeSub(LastVersionCode As Integer)
         Logger.Info($"版本号从 {LastVersionCode} 降低到 {VersionCode}")
@@ -568,7 +593,7 @@ Public Class FormMain
     ''' 正常关闭程序。程序将在执行此方法后约 0.3s 退出。
     ''' </summary>
     ''' <param name="SendWarning">是否在还有下载任务未完成时发出警告。</param>
-    Public Sub EndProgram(SendWarning As Boolean)
+    Public Sub EndProgram(SendWarning As Boolean, Optional BeforeExit As Action = Nothing)
         '强行结束下载任务？
         If HasDownloadingTask() Then
             If SendWarning AndAlso MyMsgBox("还有下载任务尚未完成，是否确定退出？", "提示", "确定", "取消") = 2 Then Return
@@ -582,6 +607,7 @@ Public Class FormMain
         End If
         '关闭联机？
         If FrmLinkMain?.TryExit(Not SendWarning, True) Then Return
+        BeforeExit?.Invoke()
         '关闭
         RunInUiWait(
         Sub()
@@ -619,7 +645,6 @@ Public Class FormMain
         On Error Resume Next
         IsProgramEnding = True
         AniControlEnabled += 1
-        If IsUpdateWaitingRestart Then UpdateRestart(False)
         If ReturnCode = ProcessReturnValues.Exception Then
             If Not IsLogShown Then
                 FeedbackInfo()
@@ -637,6 +662,46 @@ Public Class FormMain
     End Sub
     Private Sub BtnTitleClose_Click(sender As Object, e As RoutedEventArgs) Handles BtnTitleClose.Click
         EndProgram(True)
+    End Sub
+
+    Private OpenSourceNotice As MyMsgBoxConverter
+    Friend Sub ShowOpenSourceNotice(Optional Automatic As Boolean = False)
+        RunInUi(
+        Sub()
+            If Automatic AndAlso Settings.Get(Of Boolean)("HintOpenSourceHidden") Then Return
+            If OpenSourceNotice IsNot Nothing AndAlso Not OpenSourceNotice.IsExited Then Return
+            OpenSourceNotice = New MyMsgBoxConverter With {
+                .Type = MyMsgBoxType.Text, .Title = "开源版本说明", .ForceWait = True,
+                .Text = $"该开源版本的配置与功能说明：{GetCredentialSetupNotice()}{vbCrLf}- 更新检测：在设置 → 其他 → 启动器中填写更新源地址{vbCrLf}- 联网通知：该版本暂不提供{vbCrLf}- 主题切换：这是需要赞助解锁的纪念性质的功能，别让赞助者太伤心啦……{vbCrLf}- 百宝箱：开发早期往里面塞了些开发工具，整理起来太麻烦了……",
+                .CheckBoxText = If(Automatic, "下次启动不再显示", ""),
+                .CheckBoxSettingKey = If(Automatic, "HintOpenSourceHidden", Nothing)}
+            WaitingMyMsgBox.Enqueue(OpenSourceNotice)
+        End Sub)
+    End Sub
+
+    Private Sub BtnTitleNotice_Click() Handles BtnTitleNotice.Click, BtnTitleInnerNotice.Click
+        ShowOpenSourceNotice()
+    End Sub
+
+    Private Sub RefreshTitleNoticeButtons() Handles PanTitleMain.SizeChanged, PanTitleInner.SizeChanged, ShapeTitleLogo.SizeChanged,
+        LabTitleLogo.SizeChanged, ImageTitleLogo.SizeChanged, LabTitleInner.SizeChanged
+        If BtnTitleNotice Is Nothing OrElse BtnTitleInnerNotice Is Nothing Then Return
+        BtnTitleNotice.Logo = Logo.IconButtonInfo
+        BtnTitleInnerNotice.Logo = Logo.IconButtonInfo
+        Dim Available = PanTitleMain.ColumnDefinitions(0).ActualWidth
+        LabTitleLogo.MaxWidth = Math.Max(0, Available - 58)
+        ImageTitleLogo.MaxWidth = Math.Max(0, Available - 47)
+        Dim Left As Double = 12
+        For Each Brand As FrameworkElement In {ShapeTitleLogo, LabTitleLogo, ImageTitleLogo}
+            If Brand.Visibility = Visibility.Visible Then
+                Left = Brand.TransformToAncestor(PanTitleMain).Transform(New Point(Brand.ActualWidth, 0)).X + 4
+                Exit For
+            End If
+        Next
+        BtnTitleNotice.Margin = New Thickness(Math.Max(12, Math.Min(Left, Available - 36)), 0, 0, 0)
+        LabTitleInner.MaxWidth = Math.Max(0, PanTitleInner.ActualWidth - 161)
+        Dim InnerRight = LabTitleInner.TransformToAncestor(PanTitleInner).Transform(New Point(LabTitleInner.ActualWidth, 0)).X
+        BtnTitleInnerNotice.Margin = New Thickness(Math.Max(47, Math.Min(InnerRight + 6, PanTitleInner.ActualWidth - 108)), 0, 0, 0)
     End Sub
 
     '移动
@@ -791,6 +856,7 @@ Public Class FormMain
         LabTitleLogo.Text = Settings.Get(Of String)("UiLogoText")
         '标题栏文本是否居左
         PanTitleMain.ColumnDefinitions(0).Width = New GridLength(If(Settings.Get(Of Boolean)("UiLogoLeft") AndAlso Settings.Get(Of Integer)("UiLogoType") = 0, 0, 1), GridUnitType.Star)
+        RefreshTitleNoticeButtons()
     End Sub
 
 #End Region

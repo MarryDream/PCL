@@ -40,7 +40,15 @@ Public Class Application
             If e.Args.Length > 0 Then
                 If e.Args(0) = "--update" Then
                     '自动更新
-                    UpdateReplace(e.Args(1), e.Args(2).Trim(""""), e.Args(3).Trim(""""), e.Args(4))
+                    Dim ParentId As Integer, Restart As Boolean
+                    If e.Args.Length <> 5 OrElse Not Integer.TryParse(e.Args(1), ParentId) OrElse ParentId <= 0 OrElse
+                       Not Boolean.TryParse(e.Args(4), Restart) Then Environment.Exit(ProcessReturnValues.Fail)
+                    Try
+                        UpdateReplace(ParentId, e.Args(2), e.Args(3), Restart)
+                    Catch
+                        '更新程序已在缓存目录记录错误；不要在无主窗口时弹出启动错误对话框。
+                        Environment.Exit(ProcessReturnValues.Fail)
+                    End Try
                     Environment.Exit(ProcessReturnValues.TaskDone)
                 ElseIf e.Args(0) = "--gpu" Then
                     '调整显卡设置

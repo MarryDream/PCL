@@ -157,13 +157,15 @@ Friend Module ModSecret
 #Region "更新"
 
     Friend Sub UpdateCheckByButton()
-        Hint("该版本中不包含更新功能……")
+        CheckLauncherUpdate()
     End Sub
 
     Friend IsUpdateWaitingRestart As Boolean = False
     Public Sub UpdateRestart(TriggerRestartAndByEnd As Boolean)
+        If TriggerRestartAndByEnd Then RestartWithLauncherUpdate()
     End Sub
     Public Sub UpdateReplace(ProcessId As Integer, OldFileName As String, NewFileName As String, TriggerRestart As Boolean)
+        ReplaceLauncherUpdate(ProcessId, OldFileName, NewFileName, TriggerRestart)
     End Sub
 
     ''' <summary>

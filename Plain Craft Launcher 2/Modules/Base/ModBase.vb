@@ -7,7 +7,7 @@ Public Module ModBase
 
     '下列版本信息由更新器自动修改
     Public Const VersionBaseName As String = "2.99.0.1" '上游版本名
-    Public Const VersionLocalSuffix As String = "-fix-download.1" '本地修改版后缀
+    Public Const VersionLocalSuffix As String = "-fix-download.2" '本地修改版后缀
     Public Const VersionName As String = VersionBaseName & VersionLocalSuffix
     Public Const CommitHash As String = "" 'Commit Hash，由 GitHub Workflow 自动替换
 #If RELEASE Then

@@ -10,7 +10,6 @@ Public Class PageSetupSystem
             PanDonate.Visibility = Visibility.Collapsed
         Else
             PanDonate.Visibility = Visibility.Visible
-            ItemSystemUpdateDownload.Content = "在有新版本时自动下载（更新快照版前需要先输入土豆码）"
         End If
 
         '非重复加载部分
@@ -104,19 +103,10 @@ Public Class PageSetupSystem
     End Sub
     ''' <summary>
     ''' 启动器是否已经是最新版？
-    ''' 若返回 Nothing，则代表无更新缓存文件或出错。
+    ''' 若返回 Nothing，则代表尚未检测、更新源已更改或检测失败。
     ''' </summary>
     Public Shared Function IsLauncherNewest() As Boolean?
-        Try
-            '确认服务器公告是否正常
-            Dim ServerContent As String = If(FileUtils.TryReadAsString(PathTemp & "Cache\Notice.cfg"), "")
-            If ServerContent.Split("|").Count < 3 Then Return Nothing
-            '确认是否为最新
-            Return ServerContent.Split("|")(If(BuildType = BuildTypes.Release, 2, 1)) <= VersionCode
-        Catch ex As Exception
-            Logger.Error(ex, "确认启动器更新失败")
-            Return Nothing
-        End Try
+        Return GetLauncherNewest()
     End Function
 
 #Region "导出 / 导入设置"

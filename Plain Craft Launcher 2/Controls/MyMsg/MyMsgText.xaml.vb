@@ -13,6 +13,12 @@ Public Class MyMsgText
             MyConverter = Converter
             LabTitle.Text = Converter.Title
             LabCaption.Text = Converter.Text
+            If Not String.IsNullOrEmpty(Converter.CheckBoxSettingKey) AndAlso Not String.IsNullOrEmpty(Converter.CheckBoxText) Then
+                CheckOption.Text = Converter.CheckBoxText
+                CheckOption.Checked = Settings.Get(Of Boolean)(Converter.CheckBoxSettingKey)
+                SettingService.SetKey(CheckOption, Converter.CheckBoxSettingKey)
+                CheckOption.Visibility = Visibility.Visible
+            End If
             Btn1.Text = Converter.Button1
             If Converter.IsWarn Then
                 Btn1.ColorType = MyButton.ColorState.Red

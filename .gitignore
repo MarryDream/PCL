@@ -349,6 +349,7 @@ Secrets.json
 
 # Local private entry point, backups, and build outputs.
 /build.private.ps1
+/upload.private.ps1
 /artifacts/
 /*.exe
 /*.zip

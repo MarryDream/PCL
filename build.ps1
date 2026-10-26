@@ -105,11 +105,19 @@ try {
     if ($exeVersion.ProductVersion -ne $version) { throw 'EXE product version mismatch.' }
     $zip = Join-Path $output "PCL-$version.zip"
     Compress-Archive -LiteralPath $exe -DestinationPath $zip -Force
+    $zipHash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
     $checksums = @($exe, $zip) | ForEach-Object {
-        $hash = Get-FileHash -LiteralPath $_ -Algorithm SHA256
-        "$($hash.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($_))"
+        $hash = if ($_ -eq $zip) { $zipHash } else { (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant() }
+        "$hash  $([IO.Path]::GetFileName($_))"
     }
     [IO.File]::WriteAllLines((Join-Path $output 'SHA256SUMS.txt'), [string[]]$checksums, [Text.UTF8Encoding]::new($false))
+    $updateInfo = [ordered]@{
+        version = $version
+        url = ''
+        sha256 = $zipHash
+        notes = ''
+    } | ConvertTo-Json
+    [IO.File]::WriteAllText((Join-Path $output 'update.json'), $updateInfo, [Text.UTF8Encoding]::new($false))
     Write-Output "Artifacts: $output"
 } finally {
     try {

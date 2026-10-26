@@ -175,6 +175,9 @@ EndHint:
         ''' 输入模式：提示文本。
         ''' </summary>
         Public HintText As String = ""
+        '文本弹窗可选的设置复选框，默认不显示。
+        Public CheckBoxText As String = ""
+        Public CheckBoxSettingKey As String = Nothing
         ''' <summary>
         ''' 有多个按钮时，是否给第一个按钮加高亮。
         ''' </summary>
