@@ -1,4 +1,5 @@
 Imports System.ComponentModel
+Imports System.Windows.Documents
 Imports System.Windows.Interop
 
 Public Class FormMain
@@ -672,9 +673,26 @@ Public Class FormMain
             If OpenSourceNotice IsNot Nothing AndAlso Not OpenSourceNotice.IsExited Then Return
             OpenSourceNotice = New MyMsgBoxConverter With {
                 .Type = MyMsgBoxType.Text, .Title = "开源版本说明", .ForceWait = True,
-                .Text = $"此开源版本由 @MarryDream 维护，部分功能有区别于官方开源版本，版本配置与功能说明：{GetCredentialSetupNotice()}{vbCrLf}- 更新检测：在设置 → 其他 → 启动器中填写更新源地址{vbCrLf}- 联网通知：该版本暂不提供{vbCrLf}- 主题切换：这是需要赞助解锁的纪念性质的功能，别让赞助者太伤心啦……{vbCrLf}- 百宝箱：开发早期往里面塞了些开发工具，整理起来太麻烦了……",
+                .Text = $"此开源版本基于官方开源版本修改，其中官方版本配置与功能说明如下：{GetCredentialSetupNotice()}{vbCrLf}- 联网通知：该版本暂不提供{vbCrLf}- 主题切换：这是需要赞助解锁的纪念性质的功能，别让赞助者太伤心啦……{vbCrLf}- 百宝箱：开发早期往里面塞了些开发工具，整理起来太麻烦了……" &
+                        vbCrLf & vbCrLf & "此版本相较官方的部分功能改动或添加：" &
+                        vbCrLf & "- 自动更新：在设置 → 其他 → 启动器中填写更新源地址，填写后可支持检测更新与自动下载" &
+                        vbCrLf & "- 下载源：支持游戏本体下载（请尽量避免宣传）" &
+                        vbCrLf & "- 弹窗优化：提供此弹窗说明的可不再弹出选项，并添加弹窗手动弹出按钮",
                 .CheckBoxText = "下次启动不再显示",
                 .CheckBoxSettingKey = "HintOpenSourceHidden"}
+            Dim LocalRepository As New Hyperlink(New Run("MarryDream/PCL")) With {.NavigateUri = New Uri("https://github.com/MarryDream/PCL")}
+            Dim OfficialRepository As New Hyperlink(New Run("Meloong-Git/PCL")) With {.NavigateUri = New Uri("https://github.com/Meloong-Git/PCL")}
+            For Each Link In {LocalRepository, OfficialRepository}
+                Link.SetResourceReference(Hyperlink.ForegroundProperty, "ColorBrush2")
+                AddHandler Link.RequestNavigate,
+                    Sub(sender, e)
+                        OpenWebsite(e.Uri.AbsoluteUri)
+                        e.Handled = True
+                    End Sub
+            Next
+            OpenSourceNotice.Content = New List(Of Inline) From {
+                New Run(OpenSourceNotice.Text & vbCrLf & vbCrLf & "官方开源版本仓库："), OfficialRepository,
+                New Run(vbCrLf & "此版本仓库："), LocalRepository}
             WaitingMyMsgBox.Enqueue(OpenSourceNotice)
         End Sub)
     End Sub

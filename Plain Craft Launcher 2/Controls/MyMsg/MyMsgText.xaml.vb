@@ -1,3 +1,5 @@
+Imports System.Windows.Documents
+
 Public Class MyMsgText
 
     Private ReadOnly MyConverter As MyMsgBoxConverter
@@ -13,6 +15,10 @@ Public Class MyMsgText
             MyConverter = Converter
             LabTitle.Text = Converter.Title
             LabCaption.Text = Converter.Text
+            If TypeOf Converter.Content Is IEnumerable(Of Inline) Then
+                LabCaption.Inlines.Clear()
+                LabCaption.Inlines.AddRange(DirectCast(Converter.Content, IEnumerable(Of Inline)))
+            End If
             If Not String.IsNullOrEmpty(Converter.CheckBoxSettingKey) AndAlso Not String.IsNullOrEmpty(Converter.CheckBoxText) Then
                 CheckOption.Text = Converter.CheckBoxText
                 CheckOption.Checked = Settings.Get(Of Boolean)(Converter.CheckBoxSettingKey)
