@@ -38,7 +38,7 @@ Public Class Settings
         New Setting("SystemDebugSkipCopy", False, Source:=Sources.Registry),
         New Setting("SystemSystemCache", "", Source:=Sources.Registry),
         New Setting("SystemSystemUpdate", 0, OnChanged:=Sub() InvalidateLauncherUpdate()),
-        New Setting("SystemSystemUpdateSource", "", OnChanged:=Sub() InvalidateLauncherUpdate()),
+        New Setting("SystemSystemUpdateSource", DefaultUpdateSource, OnChanged:=Sub() InvalidateLauncherUpdate()),
         New Setting("SystemSystemActivity", 0),
         New Setting("SystemSystemTelemetry", True, Source:=Sources.Registry),
         New Setting("CacheDrops", "", Source:=Sources.Registry),
