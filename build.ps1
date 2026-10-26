@@ -1,8 +1,13 @@
 param([string]$MSBuildPath, [string]$OutputDirectory)
 
 $ErrorActionPreference = 'Stop'
+$originalConsoleOutputEncoding = [Console]::OutputEncoding
+$originalOutputEncoding = $OutputEncoding
 Push-Location $PSScriptRoot
 try {
+    # dotnet emits UTF-8 when redirected; PowerShell must decode it as UTF-8 too.
+    [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+    $OutputEncoding = [Text.UTF8Encoding]::new($false)
     if (-not (Test-Path 'MeloongCore/Shared/MeloongCore.csproj')) {
         throw 'Missing MeloongCore. Run: git submodule update --init --recursive'
     }
@@ -107,5 +112,10 @@ try {
     [IO.File]::WriteAllLines((Join-Path $output 'SHA256SUMS.txt'), [string[]]$checksums, [Text.UTF8Encoding]::new($false))
     Write-Output "Artifacts: $output"
 } finally {
-    Pop-Location
+    try {
+        [Console]::OutputEncoding = $originalConsoleOutputEncoding
+        $OutputEncoding = $originalOutputEncoding
+    } finally {
+        Pop-Location
+    }
 }

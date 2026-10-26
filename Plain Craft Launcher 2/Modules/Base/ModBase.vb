@@ -6,14 +6,14 @@ Public Module ModBase
 #Region "声明"
 
     '下列版本信息由更新器自动修改
-    Public Const VersionBaseName As String = "2.99.0.0" '上游版本名
+    Public Const VersionBaseName As String = "2.99.0.1" '上游版本名
     Public Const VersionLocalSuffix As String = "-fix-download.1" '本地修改版后缀
     Public Const VersionName As String = VersionBaseName & VersionLocalSuffix
     Public Const CommitHash As String = "" 'Commit Hash，由 GitHub Workflow 自动替换
 #If RELEASE Then
-    Public Const VersionCode As Integer = 413 '正式版
+    Public Const VersionCode As Integer = 415 '正式版
 #Else
-    Public Const VersionCode As Integer = 414 '快照版
+    Public Const VersionCode As Integer = 416 '快照版
 #End If
 
     '版本信息
